@@ -1,0 +1,137 @@
+-- Helper Functions
+local AimbotEnabled = false
+local LastSwitchTime = 0
+local UserInputService = game:GetService("UserInputService")
+local camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+
+-- Toggle the Aimbot
+local function ToggleAimbot()
+    AimbotEnabled = not AimbotEnabled
+end
+
+-- Listen for the keybind to toggle aimbot
+UserInputService.InputBegan:Connect(function(Input, GameProcessedEvent)
+    if Input.KeyCode == Enum.KeyCode[getgenv().Helios.Keybinds.AimbotToggle] and not GameProcessedEvent then
+        ToggleAimbot()
+    end
+end)
+
+-- Is the target within FOV and camera
+local function IsWithinFovAndCamera(targetPart)
+    local cameraDirection = camera.CFrame.LookVector
+    local toTarget = (targetPart.Position - camera.CFrame.Position).Unit
+    local angleDifference = math.acos(cameraDirection:Dot(toTarget))
+    local fovAngle = math.rad(getgenv().Helios.TargetSwitch.Fov / 2)
+
+    return angleDifference < fovAngle
+end
+
+-- Find closest target
+local function FindClosestTarget()
+    local closestTarget, closestDistance = nil, math.huge
+    local mousePosition = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local character = player.Character
+            local targetPart = character:FindFirstChild(getgenv().Helios.Aimbot.HitPart)
+
+            if targetPart and IsWithinFovAndCamera(targetPart) then
+                local screenPosition, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePosition).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestTarget = targetPart
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- Aimbot prediction based on target's velocity
+local function AimbotPrediction(target)
+    if not target then return end
+    local predictedPosition = target.Position + (target.Velocity * getgenv().Helios.Aimbot.Prediction)
+    return predictedPosition
+end
+
+-- Silent Aim Activation
+game:GetService("RunService").RenderStepped:Connect(function()
+    if getgenv().Helios.SilentAim.Enabled then
+        local targetPart = FindClosestTarget()
+
+        if targetPart then
+            local silentAimPosition = targetPart.Position + (targetPart.Velocity * getgenv().Helios.SilentAim.Prediction)
+            local mouseDirection = (silentAimPosition - camera.CFrame.Position).unit
+            camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + mouseDirection)
+        end
+    end
+end)
+
+-- Aimbot logic with smoothness and prediction
+RunService.RenderStepped:Connect(function()
+    if AimbotEnabled then
+        local targetPart = FindClosestTarget()
+
+        if targetPart then
+            local predictedPosition = AimbotPrediction(targetPart)
+            local mouseDirection = (predictedPosition - camera.CFrame.Position).unit
+            local smoothFactor = math.clamp(getgenv().Helios.Aimbot.Smoothness, 0, 1)
+            local targetAngle = (mouseDirection:Dot(camera.CFrame.LookVector))
+
+            if targetAngle > 0.98 then
+                local fovTargetPosition = camera.CFrame.Position + mouseDirection * 300
+                camera.CFrame = CFrame.new(camera.CFrame.Position, fovTargetPosition)
+            else
+                local fovTargetPosition = camera.CFrame.Position + mouseDirection * 300 * smoothFactor
+                camera.CFrame = CFrame.new(camera.CFrame.Position, fovTargetPosition)
+            end
+        end
+    end
+end)
+
+-- Target Switch Logic with Delay
+local function SwitchTarget()
+    local currentTarget = FindClosestTarget()
+    if currentTarget then
+        LastSwitchTime = tick()
+        return currentTarget
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    if tick() - LastSwitchTime >= getgenv().Helios.TargetSwitch.Delay then
+        local target = SwitchTarget()
+        if target then
+            local predictedPosition = AimbotPrediction(target)
+            camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPosition)
+        end
+    end
+end)
+
+-- Macro feature for rapid actions
+if getgenv().Helios.Macro.Enabled then
+    UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode[getgenv().Helios.Macro.Keybind] then
+            local macroSpeed = getgenv().Helios.Macro.Speed
+            -- Implement macro behavior here with speed and type
+        end
+    end)
+end
+
+-- Spin feature
+if getgenv().Helios.Spin.Enabled then
+    local spinDirection = 1
+    UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == getgenv().Helios.Spin.Keybind then
+            while getgenv().Variant.Spin.Enabled do
+                camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(spinDirection * getgenv().Helios.Spin.SpinSpeed), 0)
+                wait(1 / getgenv().Helios.Spin.SpinSpeed)
+            end
+        end
+    end)
+end
