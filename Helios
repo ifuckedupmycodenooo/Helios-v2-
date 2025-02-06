@@ -1,59 +1,38 @@
-
-if getgenv().helios.RobloxTextures.Enabled then
-    local function safeSetProperty(obj, prop, value)
-        local success, err =
-            pcall(
-            function()
-                obj[prop] = value
-            end
-        )
-        return success
-    end
-
-    local function applyTextures(obj)
-        if obj:IsA("BasePart") and not obj:IsDescendantOf(game.Players.LocalPlayer.Character) then
-            safeSetProperty(obj, "Material", getgenv().helios.RobloxTextures.Material)
-            safeSetProperty(obj, "Color", getgenv().helios.RobloxTextures.Color)
-        elseif obj:IsA("Texture") or obj:IsA("Decal") then
-            pcall(
-                function()
-                    obj.Transparency = 1
-                end
-            )
-        end
-    end
-
-    local function applyToExisting()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            applyTextures(obj)
-            if _ % 500 == 0 then
-                task.wait()
-            end -- Yield every 500 objects
-        end
-    end
-
-    -- Apply to new objects
-    local connection
-    connection = workspace.DescendantAdded:Connect(applyTextures)
-
-    -- Apply to existing objects and disconnect after a delay
-    task.spawn(
+-- Tool spawning logic based on `SpawnTool`
+if getgenv().helios.SpawnTool ~= "none" then
+    local keytoclick = "C"
+    local tool = Instance.new("Tool")
+    tool.RequiresHandle = false
+    tool.Name = getgenv().helios.SpawnTool
+    tool.Activated:Connect(
         function()
-            applyToExisting()
-            task.wait(30) -- Run for 30 seconds, adjust as needed
-            if connection then
-                connection:Disconnect()
-            end
+            local vim = game:service("VirtualInputManager")
+            vim:SendKeyEvent(true, keytoclick, false, game)
         end
     )
+    tool.Parent = game.Players.LocalPlayer.Backpack
 
-    -- Reapply periodically to catch any missed changes
-    task.spawn(
+    game.StarterGui:SetCore(
+        "SendNotification",
+        {
+            Title = "C tool",
+            Text = "C tool"
+        }
+    )
+
+    local player = game.Players.LocalPlayer
+
+    local function onCharacterAdded()
+        -- Ensure tool is parented to backpack on character respawn
+        tool.Parent = game.Players.LocalPlayer.Backpack
+    end
+
+    player.CharacterAdded:Connect(onCharacterAdded)
+
+    player.CharacterRemoving:Connect(
         function()
-            while getgenv().helios.RobloxTextures.Enabled do
-                applyToExisting()
-                task.wait(60) -- Reapply every 60 seconds, adjust as needed
-            end
+            -- Reattach the tool when character is removed
+            tool.Parent = game.Players.LocalPlayer.Backpack
         end
     )
 end
@@ -237,9 +216,9 @@ local function UpdateAimbotTarget()
     end
 end
 
--- Functionality for KOcheck
+-- Functionality for UnlockOnTargetDeath
 local function HandleTargetDeath()
-    if getgenv().helios.Checks.KOcheck and AimbotTarget then
+    if getgenv().helios.Checks.UnlockOnTargetDeath and AimbotTarget then
         local targetKO = AimbotTarget.Character:FindFirstChild("BodyEffects") and AimbotTarget.Character.BodyEffects:FindFirstChild("K.O")
         if targetKO and targetKO.Value then
             AimbotEnabled = false
@@ -364,3 +343,4 @@ end) -- Your code here
            print("Key is invalid")
         end
     end
+})
