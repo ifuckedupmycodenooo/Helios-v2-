@@ -15,8 +15,8 @@ if getgenv().helios.SpawnTool ~= "none" then
     game.StarterGui:SetCore(
         "SendNotification",
         {
-            Title = "C tool",
-            Text = "C tool"
+            Title = "C tool by solace",
+            Text = "C tool enjoy sucker"
         }
     )
 
@@ -338,9 +338,4 @@ game:GetService("RunService").Heartbeat:Connect(function()
             getgenv().helios.Silent.Prediction = getgenv().helios.Radius.VeryFarPrediction
         end
     end
-end) -- Your code here
-        else
-           print("Key is invalid")
-        end
-    end
-})
+end)
